@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------------
+// Enums
+// ------------------------------------------------------------------
+
+enum Role {
+  BUYER  @map("buyer")
+  SELLER @map("seller")
+  ADMIN  @map("admin")
+}
+
+enum CarCondition {
+  NEW  @map("new")
+  USED @map("used")
+}
+
+enum ListingStatus {
+  ACTIVE  @map("active")
+  SOLD    @map("sold")
+  PENDING @map("pending")
+  REMOVED @map("removed")
+}
+
+enum InquiryStatus {
+  PENDING   @map("pending")
+  RESPONDED @map("responded")
+  CLOSED    @map("closed")
+}
+
+enum TransactionStatus {
+  PENDING   @map("pending")
+  COMPLETED @map("completed")
+  CANCELLED @map("cancelled")
+  REFUNDED  @map("refunded")
+}
+
+// ------------------------------------------------------------------
+// Models
+// ------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  phone        String?
+  passwordHash String   @map("password_hash")
+  role         Role     @default(BUYER)
+  city         String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  cars               Car[]
+  inquiries          Inquiry[]
+  favorites          Favorite[]
+  buyerTransactions  Transaction[] @relation("BuyerTransactions")
+  sellerTransactions Transaction[] @relation("SellerTransactions")
+
+  @@map("users")
+}
+
+model Car {
+  id                 String       @id @default(uuid())
+  sellerId           String       @map("seller_id")
+  seller             User         @relation(fields: [sellerId], references: [id])
+  make               String
+  model              String
+  year               Int
+  variant            String?
+  mileage            Int?
+  fuelType           String?      @map("fuel_type")
+  transmission       String?
+  bodyType           String?      @map("body_type")
+  color              String?
+  vin                String?      @unique
+  registrationNumber String?      @map("registration_number")
+  price              Decimal      @db.Decimal(12, 2)
+  condition          CarCondition @default(USED)
+  description        String?      @db.Text
+  createdAt          DateTime     @default(now()) @map("created_at")
+
+  images   CarImage[]
+  listings Listing[]
+
+  @@index([sellerId])
+  @@map("cars")
+}
+
+model Listing {
+  id         String        @id @default(uuid())
+  carId      String        @map("car_id")
+  car        Car           @relation(fields: [carId], references: [id])
+  status     ListingStatus @default(ACTIVE)
+  city       String?
+  state      String?
+  lat        Float?
+  lng        Float?
+  viewsCount Int           @default(0) @map("views_count")
+  featured   Boolean       @default(false)
+  expiresAt  DateTime?     @map("expires_at")
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  inquiries    Inquiry[]
+  favorites    Favorite[]
+  transactions Transaction[]
+
+  @@index([carId])
+  @@index([status])
+  @@map("listings")
+}
+
+model CarImage {
+  id        String  @id @default(uuid())
+  carId     String  @map("car_id")
+  car       Car     @relation(fields: [carId], references: [id])
+  url       String
+  isPrimary Boolean @default(false) @map("is_primary")
+  order     Int     @default(0)
+
+  @@index([carId])
+  @@map("car_images")
+}
+
+model Inquiry {
+  id        String        @id @default(uuid())
+  listingId String        @map("listing_id")
+  listing   Listing       @relation(fields: [listingId], references: [id])
+  buyerId   String        @map("buyer_id")
+  buyer     User          @relation(fields: [buyerId], references: [id])
+  message   String        @db.Text
+  status    InquiryStatus @default(PENDING)
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  @@index([listingId])
+  @@index([buyerId])
+  @@map("inquiries")
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  listingId String   @map("listing_id")
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, listingId])
+  @@map("favorites")
+}
+
+model Transaction {
+  id            String            @id @default(uuid())
+  listingId     String            @map("listing_id")
+  listing       Listing           @relation(fields: [listingId], references: [id])
+  buyerId       String            @map("buyer_id")
+  buyer         User              @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  sellerId      String            @map("seller_id")
+  seller        User              @relation("SellerTransactions", fields: [sellerId], references: [id])
+  price         Decimal           @db.Decimal(12, 2)
+  status        TransactionStatus @default(PENDING)
+  paymentMethod String?           @map("payment_method")
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  @@index([listingId])
+  @@map("transactions")
+}
