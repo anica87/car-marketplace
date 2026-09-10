@@ -58,3 +58,18 @@ Register each new module in `src/app.module.ts`'s `imports` array.
 | `npm run prisma:deploy`           | Apply migrations in production                 |
 | `npm run prisma:studio`           | Open a GUI to browse/edit your data            |
 | `npm run prisma:generate`         | Regenerate the Prisma Client after schema edits|
+
+
+
+
+Search API
+
+
+The 3 search parameters:
+
+make — partial, case-insensitive match on the car's make (e.g. Toyota)
+city — exact, case-insensitive match on the listing's city
+minPrice / maxPrice — a price range (both optional, either or both can be set)
+
+
+   curl "http://localhost:3000/api/listings/search?make=Toyota"
